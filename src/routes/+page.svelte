@@ -1,114 +1,151 @@
 <script lang="ts">
-	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import * as Dialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	const CELL = {
-		EMPTY: 0,
-		RED: 1,
-		YELLOW: 2
-	};
 
-	const directionsForWin = [
-		[0, 1],
-		[1, 0],
-		[1, 1],
-		[1, -1]
-	];
+	let red_bitboard: bigint = $state(0n);
+	let yellow_bitboard: bigint = $state(0n);
+	let both_bitboard: bigint = $derived(red_bitboard | yellow_bitboard);
 
-	let boardLogic: number[][] = [];
+	const WIDTH = 7;
+	const HEIGTH = 7; // one more than actual height of the board
+	const BIG_HEIGHT = BigInt(HEIGTH);
+
 	let boardButtons: HTMLButtonElement[][] = [];
-	let turn = 1;
-	let win = false;
+	let turn = $state(true);
+	let win = $state(false);
 
-	function bindBoard(node: HTMLButtonElement, params: { r: number; c: number }) {
-		const { r, c } = params;
-		if (!boardButtons[r]) boardButtons[r] = [];
-		boardButtons[r][c] = node as HTMLButtonElement;
+	function isOccupied(bb: bigint, col: number, row: number): boolean {
+		const mask = 1n << BigInt(HEIGTH * col + row);
+		return (mask & bb) != 0n;
 	}
 
-	function putPiece(x: number, y: number) {
-		if (boardLogic[x][y] != CELL.EMPTY) return;
-		while (true) {
-			if (boardLogic[x][y + 1] != undefined && boardLogic[x][y + 1] == CELL.EMPTY) y += 1;
-			else break;
-		}
-		boardLogic[x][y] = turn;
-		win = checkWin(boardLogic, turn);
-		if (win) return;
-		turn = turn == CELL.RED ? CELL.YELLOW : CELL.RED;
+	function isPlayable(bb: bigint, col: number): boolean {
+		return !isOccupied(bb, col, HEIGTH - 1);
 	}
 
-	function checkWin(board: number[][], turn: number): boolean {
-		for (let direction of directionsForWin) {
-			for (let i = 0; i < board.length - direction[0] * 3; i++) {
-				for (
-					let j = 0 + (direction[1] == -1 ? 3 : 0);
-					j < board[i].length - (direction[1] != -1 ? direction[1] : 0) * 3;
-					j++
-				) {
-					if (
-						board[i][j] == turn &&
-						board[i + direction[0] * 1][j + direction[1] * 1] == turn &&
-						board[i + direction[0] * 2][j + direction[1] * 2] == turn &&
-						board[i + direction[0] * 3][j + direction[1] * 3] == turn
-					) {
-						return true;
-					}
-				}
-			}
+	function columnMask(col: number): bigint {
+		return ((1n << 7n) - 1n) << BigInt(col * 7);
+	}
+
+	function currentBitboard(turn: boolean): bigint {
+		if (turn) return red_bitboard;
+		return yellow_bitboard;
+	}
+
+	function bottomMask(col: number): bigint {
+		return 1n << BigInt(col * 7);
+	}
+
+	function putPiece(col: number) {
+		const move = (both_bitboard + bottomMask(col)) & columnMask(col);
+		if (turn) {
+			red_bitboard |= move;
+			win = checkWin(red_bitboard);
+			if (win) return;
+		} else {
+			yellow_bitboard |= move;
+			win = checkWin(yellow_bitboard);
+			if (win) return;
 		}
+		turn = !turn;
+	}
+
+	function checkWin(bb: bigint): boolean {
+		// vertical check
+		let mask = bb & (bb >> 1n);
+		if (mask & (mask >> 2n)) return true;
+
+		// horizontal check
+		mask = bb & (bb >> BIG_HEIGHT);
+		if (mask & (mask >> (2n * BIG_HEIGHT))) return true;
+
+		// diagonal / check
+		mask = bb & (bb >> (BIG_HEIGHT + 1n));
+		if (mask & (mask >> (2n * (BIG_HEIGHT + 1n)))) return true;
+
+		// diagonal \ check
+		mask = bb & (bb >> (BIG_HEIGHT - 1n));
+		if (mask & (mask >> (2n * (BIG_HEIGHT + -1n)))) return true;
+
 		return false;
 	}
 
-	function setupBoard() {
-		boardLogic = [];
-		for (let i = 0; i < 7; i++) {
-			let arrayRow: number[] = [];
-			for (let j = 0; j < 6; j++) {
-				arrayRow.push(CELL.EMPTY);
-			}
-			boardLogic.push(arrayRow);
-		}
-	}
+	// function checkWin(board: number[][], turn: number): boolean {
+	// 	for (let direction of directionsForWin) {
+	// 		for (let i = 0; i < board.length - direction[0] * 3; i++) {
+	// 			for (
+	// 				let j = 0 + (direction[1] == -1 ? 3 : 0);
+	// 				j < board[i].length - (direction[1] != -1 ? direction[1] : 0) * 3;
+	// 				j++
+	// 			) {
+	// 				if (
+	// 					board[i][j] == turn &&
+	// 					board[i + direction[0] * 1][j + direction[1] * 1] == turn &&
+	// 					board[i + direction[0] * 2][j + direction[1] * 2] == turn &&
+	// 					board[i + direction[0] * 3][j + direction[1] * 3] == turn
+	// 				) {
+	// 					return true;
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	// 	return false;
+	// }
 
-	function assignScore(board: number[][], turn: number): number[] {
-		let scores = [0, 0, 0, 4, 0, 0, 0]; // let's assign 4 score points to the column 4
-		return scores;
-	}
+	// function setupBoard() {
+	// 	boardLogic = [];
+	// 	for (let i = 0; i < 7; i++) {
+	// 		let arrayRow: number[] = [];
+	// 		for (let j = 0; j < 6; j++) {
+	// 			arrayRow.push(CELL.EMPTY);
+	// 		}
+	// 		boardLogic.push(arrayRow);
+	// 	}
+	// }
 
-	setupBoard();
+	// function assignScore(board: number[][], turn: number): number[] {
+	// 	let scores = [0, 0, 0, 4, 0, 0, 0]; // let's assign 4 score points to the column 4
+	// 	return scores;
+	// }
+
+	// setupBoard();
 </script>
 
 <div class="bg-blue-500 p-4 w-fit">
-	<div class="flex flex-row gap-4">
-		{#each boardLogic as rowLogic, i}
-			<div class="flex flex-col gap-4">
-				{#each rowLogic as cellLogic, j}
-					<button
-						aria-label="cell-[${i}]-[${j}]"
-						class="flex w-10 h-10 border bg-white rounded-full"
-						use:bindBoard={{ r: i, c: j }}
-						onclick={() => {
-							putPiece(i, j);
-						}}
-						class:bg-white={cellLogic == CELL.EMPTY}
-						class:bg-red-500={cellLogic == CELL.RED}
-						class:bg-yellow-500={cellLogic == CELL.YELLOW}
-					></button>
-				{/each}
-			</div>
-		{/each}
+	<div class="flex gap-4 flex-col-reverse">
+		{#key both_bitboard}
+			{#each { length: 6 } as _, i}
+				<div class="flex flex-row gap-4">
+					{#each { length: 7 } as _, j}
+						{@const isEmpty = !isOccupied(both_bitboard, j, i)}
+						{@const isRed = isOccupied(red_bitboard, j, i)}
+						<button
+							aria-label="cell"
+							class="flex w-10 h-10 border rounded-full text-black"
+							onclick={() => {
+								if (isEmpty) putPiece(j);
+							}}
+							class:bg-white={isEmpty}
+							class:bg-red-500={isRed}
+							class:bg-yellow-500={!isEmpty && !isRed}
+						></button>
+					{/each}
+				</div>
+			{/each}
+		{/key}
 	</div>
 </div>
 
 <Dialog.Root open={win}>
 	<Dialog.Content>
 		<Dialog.Header>
-			<Dialog.Title>{turn == CELL.RED ? 'Red' : 'Yellow'} player won!</Dialog.Title>
+			<Dialog.Title>{turn == true ? 'Red' : 'Yellow'} player won!</Dialog.Title>
 		</Dialog.Header>
 		<Button
 			onclick={() => {
 				win = false;
-				setupBoard();
+				red_bitboard = 0n;
+				yellow_bitboard = 0n;
 			}}>Play again!</Button
 		>
 	</Dialog.Content>

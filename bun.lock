@@ -4,6 +4,7 @@
     "": {
       "name": "4inarow",
       "dependencies": {
+        "@internationalized/date": "^3.9.0",
         "bits-ui": "^2.14.4",
         "mode-watcher": "^1.1.0",
       },
