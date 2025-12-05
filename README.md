@@ -1,1 +1,1 @@
-# ConnectFour
+# Bitboard Games
