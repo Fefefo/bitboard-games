@@ -9,13 +9,18 @@
 	let bbb = $state(0x00000fff);
 	let wbb = $state(0xfff00000);
 	let kbb = $state(0x00000000);
+
+	let whitePossibleMoves = $state(0);
+	let blackPossibleMoves = $state(0);
+
 	let abb = $derived(bbb | wbb);
 	let fbb = $derived(~abb);
 
-	let turn = $state(false);
+	let turn = $state(true);
+	let selected = 0;
 
 	let white_movers = $derived.by(() => {
-		if (!turn) return 0;
+		if (turn) return 0;
 
 		const wkbb = wbb & kbb;
 		let movers = 0;
@@ -42,28 +47,8 @@
 		return movers;
 	});
 
-	// let white_jumpers = $derived.by(() => {
-	// 	if (!turn) return 0;
-
-	// 	const wkbb = wbb & kbb;
-	// 	let movers = 0;
-	// 	let tmp = (fbb << 4) & bbb;
-	// 	if (tmp) movers |= (((tmp & mask_l3) << 3) | ((tmp & mask_l5) << 5)) & wbb;
-	// 	tmp = (((fbb & mask_l3) << 3) | ((fbb & mask_l5) << 5)) & bbb;
-	// 	movers |= (tmp << 4) & wbb;
-	// 	if (wkbb) {
-	// 		let tmp = (fbb >> 4) & bbb;
-	// 		if (tmp) movers |= (((tmp & mask_r3) >> 3) | ((tmp & mask_r5) >> 5)) & wkbb;
-	// 		tmp = (((fbb & mask_r3) >> 3) | ((fbb & mask_r5) >> 5)) & bbb;
-	// 		movers |= (tmp >> 4) & wkbb;
-	// 	}
-	// 	return movers;
-	// });
-
-	// let white_movable = $derived(white_jumpers | white_movers);
-
 	let black_movers = $derived.by(() => {
-		if (turn) return 0;
+		if (!turn) return 0;
 
 		const bkbb = bbb & kbb;
 		let movers = 0;
@@ -79,41 +64,16 @@
 		}
 		if (movers != 0) return movers;
 
-		movers = (fbb << 4) & bbb;
-		movers |= ((fbb & mask_l3) << 3) & bbb;
-		movers |= ((fbb & mask_l5) << 5) & bbb;
+		movers = (fbb >> 4) & bbb;
+		movers |= ((fbb & mask_r3) >> 3) & bbb;
+		movers |= ((fbb & mask_r5) >> 5) & bbb;
 		if (bkbb) {
-			movers |= (fbb >> 4) & bkbb;
-			movers |= ((fbb & mask_r3) >> 3) & bkbb;
-			movers |= ((fbb & mask_r5) >> 5) & bkbb;
+			movers |= (fbb << 4) & bkbb;
+			movers |= ((fbb & mask_l3) << 3) & bkbb;
+			movers |= ((fbb & mask_l5) << 5) & bkbb;
 		}
 		return movers;
 	});
-
-	// let black_jumpers = $derived.by(() => {
-	// 	if (turn) return 0;
-
-	// 	const bkbb = bbb & kbb;
-	// 	let movers = 0;
-	// 	let tmp = (fbb << 4) & wbb;
-	// 	if (tmp) movers |= (((tmp & mask_l3) << 3) | ((tmp & mask_l5) << 5)) & bbb;
-	// 	tmp = (((fbb & mask_l3) << 3) | ((fbb & mask_l5) << 5)) & wbb;
-	// 	movers |= (tmp << 4) & bbb;
-	// 	if (bkbb) {
-	// 		let tmp = (fbb >> 4) & wbb;
-	// 		if (tmp) movers |= (((tmp & mask_r3) >> 3) | ((tmp & mask_r5) >> 5)) & bkbb;
-	// 		tmp = (((fbb & mask_r3) >> 3) | ((fbb & mask_r5) >> 5)) & wbb;
-	// 		movers |= (tmp >> 4) & bkbb;
-	// 	}
-	// 	return movers;
-	// });
-
-	// let black_movable = $derived(black_jumpers | black_movers);
-
-	let all_bb = $derived(bbb | wbb);
-	let whitePossibleMoves = $state(0);
-	let blackPossibleMoves = $state(0);
-	let selected = 0;
 
 	function isOccupied(bb: number, row: number, col: number): boolean {
 		const mask = 1 << (4 * row + col);
@@ -160,12 +120,12 @@
 </script>
 
 <div class="bg-amber-900 p-4 w-fit">
-	{#key all_bb}
+	{#key abb}
 		<div class="flex flex-col-reverse">
 			{#each { length: 8 } as _, i}
 				<div class="flex flex-row">
 					{#each { length: 4 } as _, j}
-						{@const isEmpty = !isOccupied(all_bb, i, j)}
+						{@const isEmpty = !isOccupied(abb, i, j)}
 						{@const isBlack = isOccupied(bbb, i, j)}
 						{@const isPossibleWhite = isOccupied(whitePossibleMoves, i, j)}
 						{@const isPossibleBlack = isOccupied(blackPossibleMoves, i, j)}
