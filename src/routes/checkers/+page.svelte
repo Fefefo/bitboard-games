@@ -1,6 +1,5 @@
 <script lang="ts">
 	import Crown from '$lib/assets/Crown.svelte';
-	import { tick } from 'svelte';
 
 	const mask_l3 = 0x0e0e0e0e; // 0000_1110_0000_1110_0000_1110_0000_1110; << 3
 	const mask_l5 = 0x00707070; // 0000_0000_0111_0000_0111_0000_0111_0000; << 5
@@ -10,6 +9,7 @@
 	const first_row = 0xf0000000;
 	const last_row = 0x0000000f;
 
+	let turn = $state(true);
 	let bbb = $state(0x00000fff);
 	let wbb = $state(0xfff00000);
 	let kbb = $state(0x00000000);
@@ -20,7 +20,6 @@
 	let abb = $derived(bbb | wbb);
 	let fbb = $derived(~abb);
 
-	let turn = $state(true);
 	let selected = 0;
 
 	let toKill = new Map<number, number>();
